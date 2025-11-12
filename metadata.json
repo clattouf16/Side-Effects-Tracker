@@ -1,5 +1,0 @@
-{
-  "name": "Medication Side Effect Tracker",
-  "description": "An application to help users log medication dosages, timings, and corresponding side effects to observe their reactions and identify potential patterns with the help of Gemini analysis.",
-  "requestFramePermissions": []
-}
