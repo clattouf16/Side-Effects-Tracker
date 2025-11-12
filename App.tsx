@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import Header from './components/Header';
 import LogForm from './components/LogForm';
 import Timeline from './components/Timeline';
 import { LogEntry } from './types';
-import useLocalStorage from './hooks/useLocalStorage';
+import { apiService } from './services/apiService';
 import VisualizationView from './components/VisualizationView';
 import AnalysisView from './components/AnalysisView';
 import SettingsView from './components/SettingsView';
@@ -16,25 +16,55 @@ import SettingsIcon from './components/icons/SettingsIcon';
 type View = 'timeline' | 'viz' | 'analysis' | 'settings';
 
 const App: React.FC = () => {
-  const [logs, setLogs] = useLocalStorage<LogEntry[]>('med-symptom-logs', []);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [currentView, setCurrentView] = useState<View>('timeline');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadLogs();
+  }, []);
+
+  const loadLogs = async () => {
+    try {
+      setLoading(true);
+      const fetchedLogs = await apiService.getAllLogs();
+      setLogs(fetchedLogs);
+    } catch (error) {
+      console.error('Failed to load logs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const sortedLogs = useMemo(() => 
     [...logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), 
     [logs]
   );
 
-  const handleAddLog = (log: Omit<LogEntry, 'id'>) => {
+  const handleAddLog = async (log: Omit<LogEntry, 'id'>) => {
     const newLog = { ...log, id: uuidv4() } as LogEntry;
-    setLogs(prevLogs => [newLog, ...prevLogs]);
+    try {
+      const createdLog = await apiService.createLog(newLog);
+      setLogs(prevLogs => [createdLog, ...prevLogs]);
+    } catch (error) {
+      console.error('Failed to add log:', error);
+      alert('Failed to save log. Please try again.');
+    }
   };
 
-  const handleDeleteLog = (id: string) => {
-    setLogs(prevLogs => prevLogs.filter(log => log.id !== id));
+  const handleDeleteLog = async (id: string) => {
+    try {
+      await apiService.deleteLog(id);
+      setLogs(prevLogs => prevLogs.filter(log => log.id !== id));
+    } catch (error) {
+      console.error('Failed to delete log:', error);
+      alert('Failed to delete log. Please try again.');
+    }
   };
 
-  const handleImportData = (importedLogs: LogEntry[]) => {
+  const handleImportData = async (importedLogs: LogEntry[]) => {
     setLogs(importedLogs);
+    await loadLogs();
   };
 
   const renderView = () => {
